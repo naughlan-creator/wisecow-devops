@@ -22,8 +22,8 @@ spec:
         fsGroup: 1001
       containers:
       - name: wisecow-container
-        image: wisecow:local
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/naughlan-creator/wisecow-devops:latest
+        imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 4499
