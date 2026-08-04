@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: wisecow-zero-trust
+  namespace: wisecow
+spec:
+  severity: 5
+  message: "Zero-trust violation: unauthorized process execution in wisecow"
+  selector:
+    matchLabels:
+      app: wisecow
+  process:
+    matchPaths:
+      - path: /usr/bin/bash
+      - path: /usr/bin/nc
+      - path: /usr/bin/nc.openbsd
+      - path: /usr/bin/cat
+      - path: /usr/bin/sleep
+      - path: /usr/bin/rm
+      - path: /usr/bin/mkfifo
+      - path: /usr/bin/perl
+      - path: /usr/bin/dash
+      - path: /usr/games/fortune
+      - path: /usr/games/cowsay
+    action: Allow
