@@ -50,3 +50,88 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Export image reference
+        id: imageref
+        run: |
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=ghrc.io/${REPO_LC}:sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+  deploy-to-kind:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: wisecow
+          config: kind-config.yaml
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load image into cluster
+        run: |
+          docker pull ${{ needs.build-and-push.image }}
+          kind load docker-image ${{ needs.build-and-push.outputs.image }} --name wisecow
+
+      - name: Install ingress-nginx
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=180s
+
+      - name: Deploy application
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+      - name: Pin image to this commit
+        run: |
+          kubectl set image deployment/wisecow \
+            wisecow-container=${{ needs.build-and-push.outputs.image }} \
+            -n wisecow
+          kubectl rollout status deployment/wisecow -n wisecow --timeout=120s
+
+      - name: Provision TLS certificate
+        run: |
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout tls.key -out tls.crt \
+            -subj "/CN=wisecow.local/O=wisecow" \
+            -addext "subjectAltName=DNS:wisecow.local"
+          kubectl create secret tls wisecow-tls \
+            --cert=tls.crt --key=tls.key -n wisecow
+
+      - name: Apply ingress
+        run: |
+          kubectl apply -f k8s/ingress.yaml
+          sleep 15
+
+      - name: Verify HTTPS endpoint
+        run: |
+          echo "--- Cluster state ---"
+          kubectl get all,ingress -n wisecow
+          echo "--- TLS handshake ---"
+          curl -kv --resolve wisecow.local:443:127.0.0.1 \
+            https://wisecow.local 2>&1 | grep -iE "subject|issuer|TLSv|HTTP/"
+          echo "--- Application response ---"
+          curl -k --resolve wisecow.local:443:127.0.0.1 https://wisecow.local
+
+      - name: Dump diagostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A
+          kubectl describe pods -n wisecow
+          kubectl logs -n wisecow -l app=wisecow --tail=50 || true
