@@ -17,6 +17,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image: ${{ steps.imageref.outputs.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -54,7 +56,7 @@ jobs:
         id: imageref
         run: |
           REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "image=ghrc.io/${REPO_LC}:sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${REPO_LC}:sha-${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
   deploy-to-kind:
     needs: build-and-push
@@ -81,7 +83,7 @@ jobs:
 
       - name: Load image into cluster
         run: |
-          docker pull ${{ needs.build-and-push.image }}
+          docker pull ${{ needs.build-and-push.outputs.image }}
           kind load docker-image ${{ needs.build-and-push.outputs.image }} --name wisecow
 
       - name: Install ingress-nginx
