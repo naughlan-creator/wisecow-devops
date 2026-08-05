@@ -166,3 +166,10 @@ See `docs/screenshots/`:
 ## Upstream
  
 Application source: [nyrahul/wisecow](https://github.com/nyrahul/wisecow). All containerisation, manifests, pipeline, and TLS configuration in this repository are original work.
+
+---
+
+## Other problem statements
+
+- **PS2 — Scripting:** [`scripts/`](scripts/) — system health monitor (Python) and application health checker (Bash), with usage and exit-code documentation.
+- **PS3 — KubeArmor:** [`kubearmor/`](kubearmor/) — zero-trust policy, enforcement evidence, and notes on building the process whitelist.
