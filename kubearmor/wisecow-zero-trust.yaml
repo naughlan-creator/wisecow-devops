@@ -11,7 +11,9 @@ spec:
       app: wisecow
   process:
     matchPaths:
+      - path: /usr/bin/env
       - path: /usr/bin/bash
+      - path: /app/wisecow.sh
       - path: /usr/bin/nc
       - path: /usr/bin/nc.openbsd
       - path: /usr/bin/cat
@@ -23,3 +25,8 @@ spec:
       - path: /usr/games/fortune
       - path: /usr/games/cowsay
     action: Allow
+  file:
+    matchPaths:
+      - path: /etc/shadow
+      - path: /etc/passwd
+    action: Block
